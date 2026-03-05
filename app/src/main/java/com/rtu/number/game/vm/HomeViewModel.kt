@@ -19,6 +19,7 @@ class HomeViewModel @Inject constructor() : ViewModel() {
         generateSplitNumber()
     }
 
+    //TODO Move this logic in GameTreeRepository when it will be ready
     private fun generateSplitNumber() {
         val numberVariants = (1 .. 9).toList()
         val numberLength = Random.nextInt(
