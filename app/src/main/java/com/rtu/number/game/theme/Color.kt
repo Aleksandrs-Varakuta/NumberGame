@@ -1,4 +1,4 @@
-package com.rtu.number.game.ui.theme
+package com.rtu.number.game.theme
 
 import androidx.compose.ui.graphics.Color
 

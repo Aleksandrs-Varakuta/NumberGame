@@ -1,7 +1,6 @@
 package com.rtu.number.game.navigation.destinations
 
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -25,18 +24,18 @@ fun NavGraphBuilder.home(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreenRoute(
     contentPadding: PaddingValues,
     vm: HomeViewModel = hiltViewModel(),
 ) {
-    val uiState by vm.mainState.collectAsStateWithLifecycle()
+    val uiState by vm.uiState.collectAsStateWithLifecycle()
 
     HomeScreen(
         contentPadding = contentPadding,
         uiState = uiState,
-        onTestButtonClick = vm::onTestButtonClick,
+        onRestart = vm::onRestart,
+        onNumberClick = vm::onNumberClick,
     )
 
 }

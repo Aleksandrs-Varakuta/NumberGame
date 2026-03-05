@@ -1,4 +1,4 @@
-package com.rtu.number.game.ui.theme
+package com.rtu.number.game.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -35,7 +35,6 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun NumberGameTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
