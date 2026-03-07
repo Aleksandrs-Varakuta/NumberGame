@@ -5,7 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import com.rtu.number.game.navigation.destinations.GameGraphDestination
 import com.rtu.number.game.navigation.destinations.HomeDestination
+import com.rtu.number.game.navigation.destinations.gameGraph
 import com.rtu.number.game.navigation.destinations.home
 
 @Composable
@@ -17,10 +19,15 @@ fun NGNavHost(
         modifier = Modifier,
         navController = navController,
         startDestination = HomeDestination
-
     ) {
         home(
             contentPadding = contentPadding,
+            onNavigateToGameGraph = { navController.navigate(GameGraphDestination) }
+
+        )
+        gameGraph(
+            contentPadding = contentPadding,
+            navController = navController
         )
     }
 }

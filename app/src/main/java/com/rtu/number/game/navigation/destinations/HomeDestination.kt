@@ -8,7 +8,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.rtu.number.game.ui.screens.HomeScreen
-import com.rtu.number.game.vm.HomeViewModel
+import com.rtu.number.game.vm.GameViewModel
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -16,10 +16,12 @@ data object HomeDestination
 
 fun NavGraphBuilder.home(
     contentPadding: PaddingValues,
+    onNavigateToGameGraph: () -> Unit
 ) {
     composable<HomeDestination> {
         HomeScreenRoute(
             contentPadding = contentPadding,
+            onNavigateToGameGraph = onNavigateToGameGraph
         )
     }
 }
@@ -27,7 +29,8 @@ fun NavGraphBuilder.home(
 @Composable
 fun HomeScreenRoute(
     contentPadding: PaddingValues,
-    vm: HomeViewModel = hiltViewModel(),
+    vm: GameViewModel = hiltViewModel(),
+    onNavigateToGameGraph: () -> Unit
 ) {
     val uiState by vm.uiState.collectAsStateWithLifecycle()
 
@@ -36,6 +39,7 @@ fun HomeScreenRoute(
         uiState = uiState,
         onRestart = vm::onRestart,
         onNumberClick = vm::onNumberClick,
+        onNavigateToGameGraph = onNavigateToGameGraph
     )
 
 }
