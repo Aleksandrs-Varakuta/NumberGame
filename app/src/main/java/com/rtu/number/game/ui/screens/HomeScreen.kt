@@ -29,18 +29,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.rtu.number.game.model.GameNumber
+import com.rtu.number.game.model.Player
 import com.rtu.number.game.ui.extension.getNumberBoxDesignModifier
-import com.rtu.number.game.vm.HomeViewModel
+import com.rtu.number.game.vm.GameViewModel
 
 @Composable
 fun HomeScreen(
     contentPadding: PaddingValues,
-    uiState: HomeViewModel.UiState,
+    uiState: GameViewModel.UiState,
     onRestart: () -> Unit,
-    onNumberClick: (GameNumber) -> Unit
+    onNumberClick: (GameNumber) -> Unit,
+    onNavigateToGameGraph: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -48,8 +52,8 @@ fun HomeScreen(
             .padding(contentPadding)
     ) {
         Header(
-            firstPlayerScore = uiState.firstPlayerScore,
-            secondPlayerScore = uiState.secondPlayerScore
+            players = uiState.players,
+            currentPlayer = uiState.currentPlayer
         )
         Spacer(Modifier.height(32.dp))
         NumberRow(
@@ -58,14 +62,17 @@ fun HomeScreen(
             firstChosenNumber = uiState.firstChosenNumber
         )
         Spacer(Modifier.weight(1f))
-        BottomBar(onRestart = onRestart)
+        BottomBar(
+            onRestart = onRestart,
+            onNavigateToGameGraph = onNavigateToGameGraph
+        )
     }
 }
 
 @Composable
 fun Header(
-    firstPlayerScore: Int,
-    secondPlayerScore: Int,
+    players: List<Player>,
+    currentPlayer: Player,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -74,12 +81,14 @@ fun Header(
             Alignment.CenterHorizontally
         ),
     ) {
-        Text(
-            text = "First player's score: $firstPlayerScore"
-        )
-        Text(
-            text = "Second player's score: $secondPlayerScore"
-        )
+        players.forEach { player ->
+            Text(
+                text = "${player.name}: ${player.score}",
+                style = TextStyle(
+                    fontWeight = if (currentPlayer == player) FontWeight.W700 else FontWeight.Normal
+                )
+            )
+        }
     }
 }
 
@@ -178,7 +187,8 @@ private fun rememberNumberRows(
 
 @Composable
 fun BottomBar(
-    onRestart: () -> Unit
+    onRestart: () -> Unit,
+    onNavigateToGameGraph: () -> Unit
 ) {
 
     val buttonHeight = 48.dp
@@ -200,7 +210,6 @@ fun BottomBar(
                 text = "Restart"
             )
         }
-
         Button(
             modifier = Modifier.size(buttonHeight),
             onClick = {},
@@ -223,6 +232,14 @@ fun BottomBar(
             Icon(
                 imageVector = Icons.Default.Settings,
                 contentDescription = null
+            )
+        }
+        Button(
+            modifier = Modifier.height(buttonHeight),
+            onClick = onNavigateToGameGraph
+        ) {
+            Text(
+                text = "Show game graph"
             )
         }
 
