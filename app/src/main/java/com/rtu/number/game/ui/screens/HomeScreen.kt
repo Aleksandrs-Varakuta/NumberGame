@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,7 +54,10 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(
+                horizontal = 16.dp,
+                vertical = 12.dp
+            ),
     ) {
         Header(
             firstPlayerScore = uiState.firstPlayerScore,
@@ -203,8 +207,7 @@ private fun NumberRow(
             ) {
                 row.forEach { item ->
                     val isSelected = firstSelectedIndex == item.index
-                    val isNeighbourCandidate = firstSelectedIndex != null &&
-                            kotlin.math.abs(firstSelectedIndex - item.index) == 1
+                    val isNeighbourCandidate = firstSelectedIndex != null && kotlin.math.abs(firstSelectedIndex - item.index) == 1
 
                     Box(
                         modifier = Modifier
@@ -214,6 +217,8 @@ private fun NumberRow(
                                 isNeighbourCandidate = isNeighbourCandidate,
                             )
                             .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() },
                                 enabled = isInteractionEnabled,
                             ) {
                                 onNumberClick(item.index)
@@ -240,7 +245,10 @@ private fun rememberNumberRows(
 ): List<List<IndexedNumber>> {
     val density = LocalDensity.current
 
-    return remember(items, containerWidthPx) {
+    return remember(
+        items,
+        containerWidthPx
+    ) {
         with(density) {
             if (items.isEmpty() || containerWidthPx <= 0) {
                 emptyList()
@@ -248,7 +256,10 @@ private fun rememberNumberRows(
                 val rowWidthWithSpacing = containerWidthPx + itemSpacing.toPx()
                 val itemSizeWithSpacing = itemSize.toPx() + itemSpacing.toPx()
                 val hypotheticalItemsInRow = (rowWidthWithSpacing / itemSizeWithSpacing).toInt()
-                val maxItemsInRow = maxOf(1, hypotheticalItemsInRow)
+                val maxItemsInRow = maxOf(
+                    1,
+                    hypotheticalItemsInRow
+                )
 
                 items.chunked(maxItemsInRow)
             }
