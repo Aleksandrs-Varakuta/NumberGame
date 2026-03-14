@@ -16,12 +16,10 @@ data object HomeDestination
 
 fun NavGraphBuilder.home(
     contentPadding: PaddingValues,
-    onNavigateToGameGraph: () -> Unit
 ) {
     composable<HomeDestination> {
         HomeScreenRoute(
             contentPadding = contentPadding,
-            onNavigateToGameGraph = onNavigateToGameGraph
         )
     }
 }
@@ -30,7 +28,6 @@ fun NavGraphBuilder.home(
 fun HomeScreenRoute(
     contentPadding: PaddingValues,
     vm: GameViewModel = hiltViewModel(),
-    onNavigateToGameGraph: () -> Unit
 ) {
     val uiState by vm.uiState.collectAsStateWithLifecycle()
 
@@ -39,7 +36,6 @@ fun HomeScreenRoute(
         uiState = uiState,
         onRestart = vm::onRestart,
         onNumberClick = vm::onNumberClick,
-        onNavigateToGameGraph = onNavigateToGameGraph
     )
 
 }
