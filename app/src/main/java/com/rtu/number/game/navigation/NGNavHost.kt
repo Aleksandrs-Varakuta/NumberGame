@@ -17,7 +17,6 @@ fun NGNavHost(
         modifier = Modifier,
         navController = navController,
         startDestination = HomeDestination
-
     ) {
         home(
             contentPadding = contentPadding,
