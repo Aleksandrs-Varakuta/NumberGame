@@ -9,43 +9,19 @@ import javax.inject.Singleton
 
 @Singleton
 class AIManager @Inject constructor(
-    private val engine: GameEngine
+    private val engine: GameEngine,
+    private val evaluator: Evaluator,
 ) {
-
-    private val evaluator: Evaluator = SimpleEvaluator()
-
-    private val minimax by lazy {
-        MiniMaxAlgorithm(
-            evaluator = evaluator,
-            maxDepth = 5,
-            engine = engine
-        )
-    }
-
-    private val alphabeta by lazy {
-        AlphaBetaAlgorithm(
-            evaluator = evaluator,
-            maxDepth = 7,
-            engine = engine
-        )
-    }
-
     fun findMove(
         state: GameState,
         player: PlayerId,
-        algorithm: String
+        algorithm: String,
+        depth: Int,
     ): Move? {
-
         return when (algorithm) {
-
-            "alphabeta" ->
-                alphabeta.findBestMove(state, player)
-
-            "minimax" ->
-                minimax.findBestMove(state, player)
-
-            else ->
-                minimax.findBestMove(state, player)
+            "alphabeta" -> AlphaBetaAlgorithm(evaluator, depth, engine).findBestMove(state, player)
+            "minimax"   -> MiniMaxAlgorithm(evaluator, depth, engine).findBestMove(state, player)
+            else        -> MiniMaxAlgorithm(evaluator, depth, engine).findBestMove(state, player)
         }
     }
 }

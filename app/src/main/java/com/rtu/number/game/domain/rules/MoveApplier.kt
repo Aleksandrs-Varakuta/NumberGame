@@ -15,6 +15,7 @@ interface MoveApplier {
 class DefaultMoveApplier @Inject constructor(
     private val moveValidator: MoveValidator,
     private val moveResolver: MoveResolver,
+    private val gameStatusResolver: GameStatusResolver,
 ) : MoveApplier {
 
     override fun apply(
@@ -38,12 +39,14 @@ class DefaultMoveApplier @Inject constructor(
             addAll(state.numbers.subList(move.rightIndex + 1, state.numbers.size))
         }
 
-        return GameState(
+        val newState = GameState(
             numbers = updatedNumbers,
             firstPlayerScore = state.firstPlayerScore + moveResolution.scoreChange.firstPlayerDelta,
             secondPlayerScore = state.secondPlayerScore + moveResolution.scoreChange.secondPlayerDelta,
             currentPlayer = state.currentPlayer.opponent(),
             moveNumber = state.moveNumber + 1,
         )
+
+        return newState.copy(status = gameStatusResolver.resolve(newState))
     }
 }

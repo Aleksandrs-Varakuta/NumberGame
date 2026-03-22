@@ -1,45 +1,44 @@
-package com.rtu.number.game.domain.usecase
+package com.rtu.number.game.usecase
 
 import com.rtu.number.game.domain.ai.AIManager
 import com.rtu.number.game.domain.engine.GameEngine
 import com.rtu.number.game.domain.model.GameState
+import com.rtu.number.game.domain.model.GameStatus
+import com.rtu.number.game.domain.model.Move
 import com.rtu.number.game.domain.model.PlayerId
+import com.rtu.number.game.domain.repository.GameSessionRepository
 import javax.inject.Inject
 
 class ApplyMoveUseCase @Inject constructor(
     private val gameEngine: GameEngine,
-    private val aiManager: AIManager
+    private val aiManager: AIManager,
+    private val repository: GameSessionRepository,
 ) {
-
     operator fun invoke(
         state: GameState,
-        move: com.rtu.number.game.domain.model.Move,
+        move: Move,
         aiEnabled: Boolean,
-        aiAlgorithm: String
+        aiAlgorithm: String,
+        aiDepth: Int,
     ): GameState {
-
-        // ход игрока
         var newState = gameEngine.applyMove(state, move)
 
-        // если игра закончена — AI не ходит
-        if (newState.status.isFinished())
+        if (newState.status is GameStatus.Finished || !aiEnabled) {
+            repository.save(newState)
             return newState
+        }
 
-        // если AI выключен — возвращаем состояние
-        if (!aiEnabled)
-            return newState
-
-        // ход AI
         val aiMove = aiManager.findMove(
-            newState,
-            PlayerId.SECOND,
-            aiAlgorithm
+            state = newState,
+            player = PlayerId.SECOND,
+            algorithm = aiAlgorithm,
+            depth = aiDepth,
         )
-
         if (aiMove != null) {
             newState = gameEngine.applyMove(newState, aiMove)
         }
 
+        repository.save(newState)
         return newState
     }
 }

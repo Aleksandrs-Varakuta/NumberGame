@@ -1,5 +1,7 @@
 package com.rtu.number.game.data.di
 
+import com.rtu.number.game.domain.ai.Evaluator
+import com.rtu.number.game.domain.ai.SimpleEvaluator
 import com.rtu.number.game.data.repository.InMemoryGameSessionRepository
 import com.rtu.number.game.domain.repository.GameSessionRepository
 import com.rtu.number.game.domain.rules.DefaultGameStatusResolver
@@ -52,12 +54,18 @@ object DataModule {
     fun provideMoveApplier(
         moveValidator: MoveValidator,
         moveResolver: MoveResolver,
+        gameStatusResolver: GameStatusResolver,
     ): MoveApplier = DefaultMoveApplier(
         moveValidator = moveValidator,
         moveResolver = moveResolver,
+        gameStatusResolver = gameStatusResolver,
     )
 
     @Provides
     @Singleton
     fun provideGameStatusResolver(): GameStatusResolver = DefaultGameStatusResolver()
+
+    @Provides
+    @Singleton
+    fun provideEvaluator(): Evaluator = SimpleEvaluator()
 }
