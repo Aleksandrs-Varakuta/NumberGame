@@ -165,9 +165,9 @@ private fun GameStateInfo(
     val statusText = when (status) {
         GameStatus.InProgress -> "Game in progress"
         is GameStatus.Finished -> when (status.winner) {
-            PlayerId.FIRST  -> "Winner: $player1Name 🎉"
-            PlayerId.SECOND -> "Winner: $player2Name 🎉"
-            null            -> "Draw 🤝"
+            PlayerId.FIRST  -> "Winner: $player1Name"
+            PlayerId.SECOND -> "Winner: $player2Name"
+            null            -> "Draw"
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

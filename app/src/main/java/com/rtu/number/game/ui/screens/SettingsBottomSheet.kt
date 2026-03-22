@@ -64,7 +64,6 @@ fun SettingsDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        // Оборачиваем весь диалог — все Text внутри получат тёмный цвет по умолчанию
         CompositionLocalProvider(
             LocalContentColor provides TextDark,
             LocalTextStyle provides TextStyle(color = TextDark),

@@ -6,7 +6,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Цвет текста НЕ задаём глобально — каждый composable сам управляет цветом
 val Typography = Typography(
     bodyLarge = TextStyle(
         fontFamily = FontFamily.Default,
