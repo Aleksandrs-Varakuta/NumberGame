@@ -6,7 +6,10 @@ data class GameState(
     val secondPlayerScore: Int = 0,
     val currentPlayer: PlayerId = PlayerId.FIRST,
     val moveNumber: Int = 0,
+    val status: GameStatus,
 ) {
+    val status: Any
+
     init {
         require(numbers.isNotEmpty()) {
             "Numbers must not be empty."
