@@ -14,13 +14,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data object HomeDestination
 
-fun NavGraphBuilder.home(
-    contentPadding: PaddingValues,
-) {
+fun NavGraphBuilder.home(contentPadding: PaddingValues) {
     composable<HomeDestination> {
-        HomeScreenRoute(
-            contentPadding = contentPadding,
-        )
+        HomeScreenRoute(contentPadding = contentPadding)
     }
 }
 
@@ -36,6 +32,15 @@ fun HomeScreenRoute(
         uiState = uiState,
         onRestart = vm::onRestart,
         onNumberClick = vm::onNumberClick,
+        onOpenSettings = vm::onOpenSettings,
+        onCloseSettings = vm::onCloseSettings,
+        onSaveSettings = vm::onSaveSettings,
+        onDraftCellCountChange = vm::onDraftCellCountChange,
+        onDraftGameModeChange = vm::onDraftGameModeChange,
+        onDraftPlayer1NameChange = vm::onDraftPlayer1NameChange,
+        onDraftPlayer2NameChange = vm::onDraftPlayer2NameChange,
+        onDraftFirstPlayerChange = vm::onDraftFirstPlayerChange,
+        onDraftAlgorithmChange = vm::onDraftAlgorithmChange,
+        onDraftAiDepthChange = vm::onDraftAiDepthChange,
     )
-
 }

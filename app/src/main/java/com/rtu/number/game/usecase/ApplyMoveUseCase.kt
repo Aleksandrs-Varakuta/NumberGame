@@ -1,26 +1,44 @@
 package com.rtu.number.game.usecase
 
+import com.rtu.number.game.domain.ai.AIManager
+import com.rtu.number.game.domain.engine.GameEngine
 import com.rtu.number.game.domain.model.GameState
+import com.rtu.number.game.domain.model.GameStatus
 import com.rtu.number.game.domain.model.Move
+import com.rtu.number.game.domain.model.PlayerId
 import com.rtu.number.game.domain.repository.GameSessionRepository
-import com.rtu.number.game.domain.rules.NumberGameRules
 import javax.inject.Inject
 
 class ApplyMoveUseCase @Inject constructor(
+    private val gameEngine: GameEngine,
+    private val aiManager: AIManager,
     private val repository: GameSessionRepository,
-    private val rules: NumberGameRules,
 ) {
-    operator fun invoke(move: Move): GameState {
-        val currentState = requireNotNull(repository.currentState.value) {
-            "Game has not been started."
+    operator fun invoke(
+        state: GameState,
+        move: Move,
+        aiEnabled: Boolean,
+        aiAlgorithm: String,
+        aiDepth: Int,
+    ): GameState {
+        var newState = gameEngine.applyMove(state, move)
+
+        if (newState.status is GameStatus.Finished || !aiEnabled) {
+            repository.save(newState)
+            return newState
         }
 
-        val updatedState = rules.applyMove(
-            state = currentState,
-            move = move,
+        val aiMove = aiManager.findMove(
+            state = newState,
+            player = PlayerId.SECOND,
+            algorithm = aiAlgorithm,
+            depth = aiDepth,
         )
+        if (aiMove != null) {
+            newState = gameEngine.applyMove(newState, aiMove)
+        }
 
-        repository.save(updatedState)
-        return updatedState
+        repository.save(newState)
+        return newState
     }
 }

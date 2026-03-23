@@ -6,6 +6,7 @@ data class GameState(
     val secondPlayerScore: Int = 0,
     val currentPlayer: PlayerId = PlayerId.FIRST,
     val moveNumber: Int = 0,
+    val status: GameStatus = GameStatus.InProgress,
 ) {
     init {
         require(numbers.isNotEmpty()) {
