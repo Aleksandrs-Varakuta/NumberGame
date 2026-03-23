@@ -4,6 +4,8 @@ import com.rtu.number.game.domain.engine.GameEngine
 import com.rtu.number.game.domain.model.GameState
 import com.rtu.number.game.domain.model.Move
 import com.rtu.number.game.domain.model.PlayerId
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -12,17 +14,28 @@ class MiniMaxAlgorithm(
     evaluator: Evaluator,
     maxDepth: Int,
     engine: GameEngine
-) : GameAlgorithm(evaluator, maxDepth, engine) {
+) : GameAlgorithm(
+    evaluator,
+    maxDepth,
+    engine
+) {
 
-    override fun findBestMove(state: GameState, player: PlayerId): Move? {
-
+    override suspend fun findBestMove(
+        state: GameState,
+        player: PlayerId
+    ): Move? = withContext(Dispatchers.Default) {
         resetCounters()
 
         val root = GameNode(state)
 
-        val bestValue = minimax(root, maxDepth, true, player)
+        val bestValue = minimax(
+            root,
+            maxDepth,
+            true,
+            player
+        )
 
-        return root.children.firstOrNull {
+        root.children.firstOrNull {
             abs(it.evaluation - bestValue) < 0.0001
         }?.move
     }
@@ -36,7 +49,10 @@ class MiniMaxAlgorithm(
 
         if (depth == 0 || node.isTerminal()) {
 
-            val eval = evaluator.evaluate(node.state, player)
+            val eval = evaluator.evaluate(
+                node.state,
+                player
+            )
 
             node.evaluation = eval
 
@@ -45,7 +61,10 @@ class MiniMaxAlgorithm(
             return eval
         }
 
-        generateChildren(node, node.depth)
+        generateChildren(
+            node,
+            node.depth
+        )
 
         if (isMaximizing) {
 
@@ -53,9 +72,17 @@ class MiniMaxAlgorithm(
 
             for (child in node.children) {
 
-                val eval = minimax(child, depth - 1, false, player)
+                val eval = minimax(
+                    child,
+                    depth - 1,
+                    false,
+                    player
+                )
 
-                maxEval = max(maxEval, eval)
+                maxEval = max(
+                    maxEval,
+                    eval
+                )
             }
 
             node.evaluation = maxEval
@@ -67,9 +94,17 @@ class MiniMaxAlgorithm(
 
             for (child in node.children) {
 
-                val eval = minimax(child, depth - 1, true, player)
+                val eval = minimax(
+                    child,
+                    depth - 1,
+                    true,
+                    player
+                )
 
-                minEval = min(minEval, eval)
+                minEval = min(
+                    minEval,
+                    eval
+                )
             }
 
             node.evaluation = minEval

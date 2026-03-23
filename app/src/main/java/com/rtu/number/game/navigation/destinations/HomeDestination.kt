@@ -2,9 +2,7 @@ package com.rtu.number.game.navigation.destinations
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.rtu.number.game.ui.screens.HomeScreen
@@ -14,9 +12,17 @@ import kotlinx.serialization.Serializable
 @Serializable
 data object HomeDestination
 
-fun NavGraphBuilder.home(contentPadding: PaddingValues) {
+fun NavGraphBuilder.home(
+    contentPadding: PaddingValues,
+    onStartGame: () -> Unit,
+    onOpenSettings: () -> Unit
+) {
     composable<HomeDestination> {
-        HomeScreenRoute(contentPadding = contentPadding)
+        HomeScreenRoute(
+            contentPadding = contentPadding,
+            onStartGame = onStartGame,
+            onOpenSettings = onOpenSettings
+        )
     }
 }
 
@@ -24,23 +30,16 @@ fun NavGraphBuilder.home(contentPadding: PaddingValues) {
 fun HomeScreenRoute(
     contentPadding: PaddingValues,
     vm: GameViewModel = hiltViewModel(),
+    onOpenSettings: () -> Unit,
+    onStartGame: () -> Unit,
 ) {
-    val uiState by vm.uiState.collectAsStateWithLifecycle()
 
     HomeScreen(
         contentPadding = contentPadding,
-        uiState = uiState,
-        onRestart = vm::onRestart,
-        onNumberClick = vm::onNumberClick,
-        onOpenSettings = vm::onOpenSettings,
-        onCloseSettings = vm::onCloseSettings,
-        onSaveSettings = vm::onSaveSettings,
-        onDraftCellCountChange = vm::onDraftCellCountChange,
-        onDraftGameModeChange = vm::onDraftGameModeChange,
-        onDraftPlayer1NameChange = vm::onDraftPlayer1NameChange,
-        onDraftPlayer2NameChange = vm::onDraftPlayer2NameChange,
-        onDraftFirstPlayerChange = vm::onDraftFirstPlayerChange,
-        onDraftAlgorithmChange = vm::onDraftAlgorithmChange,
-        onDraftAiDepthChange = vm::onDraftAiDepthChange,
+        onStartGame = { gameMode ->
+            vm.onChangeGameMode(gameMode)
+            onStartGame()
+        },
+        onOpenSettings = onOpenSettings,
     )
 }
