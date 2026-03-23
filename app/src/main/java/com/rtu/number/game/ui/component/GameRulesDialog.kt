@@ -25,7 +25,7 @@ import androidx.compose.ui.window.DialogProperties
 
 
 @Composable
-fun InfoDialog(
+fun GameRulesDialog(
     onDismiss: () -> Unit,
 ) {
     Dialog(
@@ -58,16 +58,14 @@ fun InfoDialog(
 
                 Text(
                     text = """
-                        • This is a deterministic two-player game with complete information.
-                        • The player has a choice to:
-                            • P1 vs P2 - play against a player.
-                            • P1 vs AI - play against a computer.
-                        • In the settings you have the option to change:
-                            • The cell count in the range from 15 to 25.
-                            • The player names.
-                            • Which player starts the game.
-                            • How far the computer forecasts in the range from 1 to 4.
-                            • Which algorithm the computer uses MinMax or Alpha-Beta.
+                        • Choose two numbers besides each other.
+                        • There are 3 possible outcomes based on the sum of the numbers chosen:
+                            1. Sum > 7: The numbers are replaced by the number 1 and you gain 1 point.
+                            2. Sum < 7: The numbers are replaced by the number 3 and opponent looses 1 point.
+                            3. Sum = 7: The numbers are replaced by the number 2 and both players gain 1 point.
+                        • The game continues until no moves remain.
+                        • Highest score wins!
+                        • If the scores are equal it's a draw!
                     """.trimIndent(),
                     fontSize = 12.sp,
                     textAlign = TextAlign.Start,

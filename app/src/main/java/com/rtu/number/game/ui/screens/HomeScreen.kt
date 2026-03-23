@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,6 +20,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.rtu.number.game.R
 import com.rtu.number.game.domain.model.GameMode
+import com.rtu.number.game.ui.component.InfoDialog
 
 @Composable
 fun HomeScreen(
@@ -24,6 +28,8 @@ fun HomeScreen(
     onStartGame: (gameMode: GameMode) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
+    var showInfoDialog by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .padding(contentPadding)
@@ -79,11 +85,15 @@ fun HomeScreen(
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
-                    onClick = { }),
+                    onClick = { showInfoDialog = true }
+                ),
             painter = painterResource(R.drawable.info_button),
             contentDescription = null
         )
 
+        if (showInfoDialog) {
+            InfoDialog(onDismiss = { showInfoDialog = false})
+        }
     }
 
 }

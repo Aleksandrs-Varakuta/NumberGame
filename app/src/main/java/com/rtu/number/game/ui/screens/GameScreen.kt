@@ -21,6 +21,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +37,7 @@ import com.rtu.number.game.R
 import com.rtu.number.game.domain.model.GameMode
 import com.rtu.number.game.domain.model.GameStatus
 import com.rtu.number.game.domain.model.PlayerId
+import com.rtu.number.game.ui.component.GameRulesDialog
 import com.rtu.number.game.ui.component.NumberRow
 import com.rtu.number.game.vm.GameViewModel
 
@@ -46,6 +50,8 @@ fun GameScreen(
     onMoveAnimationFinished: () -> Unit,
     onBack: () -> Unit,
 ) {
+    var showGameRulesDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -76,7 +82,7 @@ fun GameScreen(
 
         BottomBar(
             onRestart = onRestart,
-            onOpenInfo = {},
+            onOpenGameRules = { showGameRulesDialog = true},
             onBack = onBack,
             firstPlayerName = uiState.player1Name,
             secondPlayerName = uiState.player2Name,
@@ -86,6 +92,10 @@ fun GameScreen(
             gameMode = uiState.settings.gameMode,
             aiThinks = uiState.isAiTurn
         )
+
+        if (showGameRulesDialog) {
+            GameRulesDialog(onDismiss = { showGameRulesDialog = false })
+        }
     }
 }
 
@@ -114,7 +124,7 @@ private fun GameStateInfo(
 @Composable
 private fun BottomBar(
     onRestart: () -> Unit,
-    onOpenInfo: () -> Unit,
+    onOpenGameRules: () -> Unit,
     onBack: () -> Unit,
     firstPlayerName: String,
     secondPlayerName: String,
@@ -164,7 +174,7 @@ private fun BottomBar(
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
-                    onClick = onOpenInfo
+                    onClick = onOpenGameRules
                 ),
             painter = painterResource(R.drawable.info_button),
             contentDescription = null
