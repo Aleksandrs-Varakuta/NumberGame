@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,7 +35,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.rtu.number.game.domain.model.Move
+import kotlin.math.abs
 import kotlin.math.roundToInt
+
+private const val MOVE_ANIMATION_DURATION_MS = 320
 
 @Composable
 fun NumberRow(
@@ -49,196 +53,156 @@ fun NumberRow(
     val itemSize = 48.dp
 
     val density = LocalDensity.current
-    val itemSizePx = with(density) { itemSize.toPx() }
-    val itemSpacingPx = with(density) { itemSpacing.toPx() }
+    val metrics = remember(
+        density,
+        itemSize,
+        itemSpacing
+    ) {
+        RowMetrics(
+            itemSize = itemSize,
+            itemSpacing = itemSpacing,
+            itemSizePx = with(density) { itemSize.toPx() },
+            itemSpacingPx = with(density) { itemSpacing.toPx() },
+        )
+    }
 
     var containerWidthPx by remember { mutableIntStateOf(0) }
     val animationProgress = remember { Animatable(0f) }
+    val latestOnMoveAnimationFinished by rememberUpdatedState(onMoveAnimationFinished)
 
-    val currentItems = remember(numbers) {
-        numbers.mapIndexed { index, value ->
-            IndexedNumber(
-                index = index,
-                value = value,
-            )
-        }
-    }
-
-    val leftIndex = moveToAnimate?.leftIndex?.takeIf { it in numbers.indices }
-    val rightIndex = leftIndex?.plus(1)
-        ?.takeIf { it in numbers.indices }
+    val items = remember(numbers) { numbers.toIndexedNumbers() }
 
     val currentLayout = remember(
-        currentItems,
+        items,
         containerWidthPx,
-        itemSizePx,
-        itemSpacingPx
+        metrics
     ) {
         buildLayoutInfo(
-            items = currentItems,
+            items = items,
             containerWidthPx = containerWidthPx,
-            itemSizePx = itemSizePx,
-            itemSpacingPx = itemSpacingPx,
+            itemSizePx = metrics.itemSizePx,
+            itemSpacingPx = metrics.itemSpacingPx,
         )
     }
 
-    val targetItems = remember(
-        currentItems,
-        rightIndex
+    val animationPlan = remember(
+        items,
+        moveToAnimate,
+        containerWidthPx,
+        metrics
     ) {
-        if (rightIndex == null) {
-            currentItems
-        } else {
-            currentItems.filterNot { it.index == rightIndex }
+        buildAnimationPlan(
+            items = items,
+            move = moveToAnimate,
+            containerWidthPx = containerWidthPx,
+            itemSizePx = metrics.itemSizePx,
+            itemSpacingPx = metrics.itemSpacingPx,
+        )
+    }
+
+    val shouldFinishInvalidMove = remember(
+        moveToAnimate,
+        containerWidthPx,
+        animationPlan
+    ) {
+        moveToAnimate != null && containerWidthPx > 0 && animationPlan == null
+    }
+
+    LaunchedEffect(shouldFinishInvalidMove) {
+        if (shouldFinishInvalidMove) {
+            latestOnMoveAnimationFinished()
         }
     }
 
-    val targetLayout = remember(
-        targetItems,
-        containerWidthPx,
-        itemSizePx,
-        itemSpacingPx
-    ) {
-        buildLayoutInfo(
-            items = targetItems,
-            containerWidthPx = containerWidthPx,
-            itemSizePx = itemSizePx,
-            itemSpacingPx = itemSpacingPx,
-        )
+    LaunchedEffect(animationPlan?.animationKey) {
+        if (animationPlan == null) return@LaunchedEffect
+
+        try {
+            animationProgress.snapTo(0f)
+            animationProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = MOVE_ANIMATION_DURATION_MS,
+                    easing = FastOutSlowInEasing,
+                ),
+            )
+        } finally {
+            animationProgress.snapTo(0f)
+            latestOnMoveAnimationFinished()
+        }
     }
 
-    val overlayReady =
-        moveToAnimate != null && leftIndex != null && rightIndex != null && containerWidthPx > 0 && currentLayout.positions[leftIndex] != null && currentLayout.positions[rightIndex] != null && targetLayout.positions[leftIndex] != null
-
-    LaunchedEffect(
-        moveToAnimate,
-        overlayReady
-    ) {
-        if (!overlayReady) return@LaunchedEffect
-
-        animationProgress.snapTo(0f)
-        animationProgress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(
-                durationMillis = 320,
-                easing = FastOutSlowInEasing,
-            ),
-        )
-        onMoveAnimationFinished()
-        animationProgress.snapTo(0f)
-    }
+    val isAnimating = animationPlan != null
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .onGloballyPositioned {
-                containerWidthPx = it.size.width
+            .onGloballyPositioned { coordinates ->
+                containerWidthPx = coordinates.size.width
             },
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(itemSpacing),
-        ) {
-            currentLayout.rows.forEach { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(
-                        itemSpacing,
-                        Alignment.CenterHorizontally,
-                    ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    row.forEach { item ->
-                        val isSelected = !overlayReady && firstSelectedIndex == item.index
+        NumberGrid(
+            rows = currentLayout.rows,
+            firstSelectedIndex = firstSelectedIndex,
+            itemSize = metrics.itemSize,
+            itemSpacing = metrics.itemSpacing,
+            isVisible = !isAnimating,
+            isInteractionEnabled = isInteractionEnabled && !isAnimating,
+            onNumberClick = onNumberClick,
+        )
 
-                        val isNeighbour =
-                            !overlayReady && firstSelectedIndex != null && kotlin.math.abs(firstSelectedIndex - item.index) == 1
-
-                        Box(
-                            modifier = Modifier
-                                .size(itemSize)
-                                .alpha(if (overlayReady) 0f else 1f)
-                                .numberItemModifier(
-                                    isSelected = isSelected,
-                                    isNeighbour = isNeighbour,
-                                )
-                                .clickable(
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    enabled = isInteractionEnabled,
-                                ) {
-                                    onNumberClick(item.index)
-                                },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = item.value.toString(),
-                                color = Color.Black,
-                            )
-                        }
-                    }
-                }
-            }
+        if (animationPlan != null) {
+            AnimatedOverlay(
+                plan = animationPlan,
+                progress = animationProgress.value,
+                itemSize = metrics.itemSize,
+            )
         }
+    }
+}
 
-        if (overlayReady) {
-            val progress = animationProgress.value
+@Composable
+private fun NumberGrid(
+    rows: List<List<IndexedNumber>>,
+    firstSelectedIndex: Int?,
+    itemSize: Dp,
+    itemSpacing: Dp,
+    isVisible: Boolean,
+    isInteractionEnabled: Boolean,
+    onNumberClick: (Int) -> Unit,
+) {
+    val alpha = if (isVisible) 1f else 0f
 
-            currentItems.forEach { item ->
-                val start = currentLayout.positions[item.index] ?: return@forEach
-
-                val end = when (item.index) {
-                    rightIndex -> targetLayout.positions[leftIndex]
-                    else -> targetLayout.positions[item.index]
-                } ?: return@forEach
-
-                val startRow = currentLayout.rowByIndex[item.index] ?: return@forEach
-                val endRow = when (item.index) {
-                    rightIndex -> targetLayout.rowByIndex[leftIndex]
-                    else -> targetLayout.rowByIndex[item.index]
-                } ?: return@forEach
-
-                val isMergeTile = item.index == leftIndex || item.index == rightIndex
-                val sameRow = startRow == endRow
-
-                val exitLeft = Offset(
-                    x = (currentLayout.rowStartX[startRow] ?: start.x) - itemSizePx - itemSpacingPx,
-                    y = start.y,
-                )
-
-                val enterRight = Offset(
-                    x = (targetLayout.rowEndX[endRow] ?: end.x) + itemSizePx + itemSpacingPx,
-                    y = end.y,
-                )
-
-                if (sameRow) {
-                    SingleOverlayCell(
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(alpha),
+        verticalArrangement = Arrangement.spacedBy(itemSpacing),
+    ) {
+        rows.forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(
+                    itemSpacing,
+                    Alignment.CenterHorizontally,
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                row.forEach { item ->
+                    NumberCell(
                         value = item.value,
-                        position = lerp(
-                            start,
-                            end,
-                            progress
-                        ),
                         itemSize = itemSize,
-                        isHighlighted = isMergeTile,
-                    )
-                } else {
-                    WrappedOverlayCell(
-                        value = item.value,
-                        exitPosition = lerp(
-                            start,
-                            exitLeft,
-                            progress
+                        highlightState = resolveHighlightState(
+                            firstSelectedIndex = firstSelectedIndex,
+                            currentIndex = item.index,
                         ),
-                        enterPosition = lerp(
-                            enterRight,
-                            end,
-                            progress
-                        ),
-                        exitAlpha = 1f - progress,
-                        enterAlpha = progress,
-                        itemSize = itemSize,
-                        isHighlighted = isMergeTile,
+                        modifier = Modifier.clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() },
+                            enabled = isInteractionEnabled,
+                        ) {
+                            onNumberClick(item.index)
+                        },
                     )
                 }
             }
@@ -247,13 +211,67 @@ fun NumberRow(
 }
 
 @Composable
-private fun SingleOverlayCell(
+private fun AnimatedOverlay(
+    plan: AnimationPlan,
+    progress: Float,
+    itemSize: Dp,
+) {
+    plan.transitions.forEach { transition ->
+        when (transition) {
+            is CellTransition.Direct -> {
+                OverlayCell(
+                    value = transition.value,
+                    position = lerp(
+                        transition.startPosition,
+                        transition.endPosition,
+                        progress
+                    ),
+                    itemSize = itemSize,
+                    isHighlighted = transition.isHighlighted,
+                    alpha = 1f,
+                )
+            }
+
+            is CellTransition.Wrapped -> {
+                OverlayCell(
+                    value = transition.value,
+                    position = lerp(
+                        transition.startPosition,
+                        transition.exitPosition,
+                        progress
+                    ),
+                    itemSize = itemSize,
+                    isHighlighted = transition.isHighlighted,
+                    alpha = 1f - progress,
+                )
+                OverlayCell(
+                    value = transition.value,
+                    position = lerp(
+                        transition.enterPosition,
+                        transition.endPosition,
+                        progress
+                    ),
+                    itemSize = itemSize,
+                    isHighlighted = transition.isHighlighted,
+                    alpha = progress,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OverlayCell(
     value: Int,
     position: Offset,
     itemSize: Dp,
     isHighlighted: Boolean,
+    alpha: Float,
 ) {
-    Box(
+    NumberCell(
+        value = value,
+        itemSize = itemSize,
+        highlightState = if (isHighlighted) HighlightState.Selected else HighlightState.Normal,
         modifier = Modifier
             .offset {
                 IntOffset(
@@ -261,79 +279,27 @@ private fun SingleOverlayCell(
                     y = position.y.roundToInt(),
                 )
             }
-            .zIndex(1f)
-            .size(itemSize)
-            .numberItemModifier(
-                isSelected = isHighlighted,
-                isNeighbour = false,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = value.toString(),
-            color = Color.Black,
-        )
-    }
+            .alpha(
+                alpha.coerceIn(
+                    0f,
+                    1f
+                )
+            )
+            .zIndex(1f),
+    )
 }
 
 @Composable
-private fun WrappedOverlayCell(
+private fun NumberCell(
     value: Int,
-    exitPosition: Offset,
-    enterPosition: Offset,
-    exitAlpha: Float,
-    enterAlpha: Float,
     itemSize: Dp,
-    isHighlighted: Boolean,
+    highlightState: HighlightState,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier
-            .offset {
-                IntOffset(
-                    x = exitPosition.x.roundToInt(),
-                    y = exitPosition.y.roundToInt(),
-                )
-            }
-            .alpha(
-                exitAlpha.coerceIn(
-                    0f,
-                    1f
-                )
-            )
-            .zIndex(1f)
+        modifier = modifier
             .size(itemSize)
-            .numberItemModifier(
-                isSelected = isHighlighted,
-                isNeighbour = false,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = value.toString(),
-            color = Color.Black,
-        )
-    }
-
-    Box(
-        modifier = Modifier
-            .offset {
-                IntOffset(
-                    x = enterPosition.x.roundToInt(),
-                    y = enterPosition.y.roundToInt(),
-                )
-            }
-            .alpha(
-                enterAlpha.coerceIn(
-                    0f,
-                    1f
-                )
-            )
-            .zIndex(1f)
-            .size(itemSize)
-            .numberItemModifier(
-                isSelected = isHighlighted,
-                isNeighbour = false,
-            ),
+            .numberItemModifier(highlightState),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -342,6 +308,115 @@ private fun WrappedOverlayCell(
         )
     }
 }
+
+private fun resolveHighlightState(
+    firstSelectedIndex: Int?,
+    currentIndex: Int,
+): HighlightState {
+    return when {
+        firstSelectedIndex == currentIndex -> HighlightState.Selected
+        firstSelectedIndex != null && abs(firstSelectedIndex - currentIndex) == 1 -> HighlightState.Neighbour
+        else -> HighlightState.Normal
+    }
+}
+
+private fun List<Int>.toIndexedNumbers(): List<IndexedNumber> {
+    return mapIndexed { index, value ->
+        IndexedNumber(
+            index = index,
+            value = value,
+        )
+    }
+}
+
+private fun Move.canBeAnimated(itemCount: Int): Boolean {
+    val startIndex = leftIndex
+    val nextIndex = startIndex + 1
+    return startIndex in 0 until itemCount && nextIndex in 0 until itemCount
+}
+
+private fun buildAnimationPlan(
+    items: List<IndexedNumber>,
+    move: Move?,
+    containerWidthPx: Int,
+    itemSizePx: Float,
+    itemSpacingPx: Float,
+): AnimationPlan? {
+    if (move == null || containerWidthPx <= 0 || !move.canBeAnimated(items.size)) {
+        return null
+    }
+
+    val leftIndex = move.leftIndex
+    val rightIndex = leftIndex + 1
+
+    val startLayout = buildLayoutInfo(
+        items = items,
+        containerWidthPx = containerWidthPx,
+        itemSizePx = itemSizePx,
+        itemSpacingPx = itemSpacingPx,
+    )
+
+    val endItems = items.filterNot { indexedNumber ->
+        indexedNumber.index == rightIndex
+    }
+
+    val endLayout = buildLayoutInfo(
+        items = endItems,
+        containerWidthPx = containerWidthPx,
+        itemSizePx = itemSizePx,
+        itemSpacingPx = itemSpacingPx,
+    )
+
+    val transitions = items.mapNotNull { item ->
+        val startPosition = startLayout.positions[item.index] ?: return@mapNotNull null
+        val targetIndex = if (item.index == rightIndex) leftIndex else item.index
+        val endPosition = endLayout.positions[targetIndex] ?: return@mapNotNull null
+        val startRow = startLayout.rowByIndex[item.index] ?: return@mapNotNull null
+        val endRow = endLayout.rowByIndex[targetIndex] ?: return@mapNotNull null
+        val isHighlighted = item.index == leftIndex || item.index == rightIndex
+
+        if (startRow == endRow) {
+            CellTransition.Direct(
+                value = item.value,
+                startPosition = startPosition,
+                endPosition = endPosition,
+                isHighlighted = isHighlighted,
+            )
+        } else {
+            CellTransition.Wrapped(
+                value = item.value,
+                startPosition = startPosition,
+                exitPosition = Offset(
+                    x = (startLayout.rowStartX[startRow]
+                        ?: startPosition.x) - itemSizePx - itemSpacingPx,
+                    y = startPosition.y,
+                ),
+                enterPosition = Offset(
+                    x = (endLayout.rowEndX[endRow] ?: endPosition.x) + itemSizePx + itemSpacingPx,
+                    y = endPosition.y,
+                ),
+                endPosition = endPosition,
+                isHighlighted = isHighlighted,
+            )
+        }
+    }
+
+    if (transitions.size != items.size) {
+        return null
+    }
+
+    return AnimationPlan(
+        animationKey = "${move.leftIndex}:${items.size}:${containerWidthPx}",
+        transitions = transitions,
+    )
+}
+
+private data class RowMetrics(
+    val itemSize: Dp,
+    val itemSpacing: Dp,
+    val itemSizePx: Float,
+    val itemSpacingPx: Float,
+)
 
 private data class IndexedNumber(
     val index: Int,
@@ -355,6 +430,36 @@ private data class LayoutInfo(
     val rowStartX: Map<Int, Float>,
     val rowEndX: Map<Int, Float>,
 )
+
+private data class AnimationPlan(
+    val animationKey: String,
+    val transitions: List<CellTransition>,
+)
+
+private sealed interface CellTransition {
+    val value: Int
+    val isHighlighted: Boolean
+
+    data class Direct(
+        override val value: Int,
+        val startPosition: Offset,
+        val endPosition: Offset,
+        override val isHighlighted: Boolean,
+    ) : CellTransition
+
+    data class Wrapped(
+        override val value: Int,
+        val startPosition: Offset,
+        val exitPosition: Offset,
+        val enterPosition: Offset,
+        val endPosition: Offset,
+        override val isHighlighted: Boolean,
+    ) : CellTransition
+}
+
+private enum class HighlightState {
+    Normal, Selected, Neighbour,
+}
 
 private fun buildLayoutInfo(
     items: List<IndexedNumber>,
@@ -372,27 +477,28 @@ private fun buildLayoutInfo(
         )
     }
 
-    val maxItems = maxOf(
+    val maxItemsInRow = maxOf(
         1,
         ((containerWidthPx + itemSpacingPx) / (itemSizePx + itemSpacingPx)).toInt(),
     )
 
-    val rows = items.chunked(maxItems)
-
+    val rows = items.chunked(maxItemsInRow)
     val positions = mutableMapOf<Int, Offset>()
     val rowByIndex = mutableMapOf<Int, Int>()
     val rowStartX = mutableMapOf<Int, Float>()
     val rowEndX = mutableMapOf<Int, Float>()
 
-    rows.forEachIndexed { rowIndex, row ->
-        val rowWidth = row.size * itemSizePx + (row.size - 1).coerceAtLeast(0) * itemSpacingPx
+    rows.forEachIndexed { rowIndex, rowItems ->
+        val rowWidth =
+            rowItems.size * itemSizePx + (rowItems.size - 1).coerceAtLeast(0) * itemSpacingPx
         val startX = (containerWidthPx - rowWidth) / 2f
         val y = rowIndex * (itemSizePx + itemSpacingPx)
 
         rowStartX[rowIndex] = startX
-        rowEndX[rowIndex] = startX + (row.lastIndex.coerceAtLeast(0)) * (itemSizePx + itemSpacingPx)
+        rowEndX[rowIndex] =
+            startX + rowItems.lastIndex.coerceAtLeast(0) * (itemSizePx + itemSpacingPx)
 
-        row.forEachIndexed { columnIndex, item ->
+        rowItems.forEachIndexed { columnIndex, item ->
             val x = startX + columnIndex * (itemSizePx + itemSpacingPx)
             positions[item.index] = Offset(
                 x,
@@ -412,37 +518,34 @@ private fun buildLayoutInfo(
 }
 
 private fun Modifier.numberItemModifier(
-    isSelected: Boolean,
-    isNeighbour: Boolean,
+    highlightState: HighlightState,
 ): Modifier {
-    val border = when {
-        isSelected -> Color(0xFF1565C0)
-        isNeighbour -> Color(0xFF42A5F5)
-        else -> Color(0xFFBDBDBD)
+    val borderColor = when (highlightState) {
+        HighlightState.Selected -> Color(0xFF1565C0)
+        HighlightState.Neighbour -> Color(0xFF42A5F5)
+        HighlightState.Normal -> Color(0xFFBDBDBD)
     }
 
-    val background = when {
-        isSelected -> Color(0xFFBBDEFB)
-        isNeighbour -> Color(0xFFE3F2FD)
-        else -> Color(0xFFF5F5F5)
+    val backgroundColor = when (highlightState) {
+        HighlightState.Selected -> Color(0xFFBBDEFB)
+        HighlightState.Neighbour -> Color(0xFFE3F2FD)
+        HighlightState.Normal -> Color(0xFFF5F5F5)
     }
 
-    return this
-        .background(
-            color = background,
-            shape = RoundedCornerShape(12.dp),
-        )
-        .border(
-            width = 2.dp,
-            color = border,
-            shape = RoundedCornerShape(12.dp),
-        )
+    return background(
+        color = backgroundColor,
+        shape = RoundedCornerShape(12.dp),
+    ).border(
+        width = 2.dp,
+        color = borderColor,
+        shape = RoundedCornerShape(12.dp),
+    )
 }
 
 private fun lerp(
     start: Offset,
     end: Offset,
-    fraction: Float
+    fraction: Float,
 ): Offset {
     return Offset(
         x = start.x + (end.x - start.x) * fraction,

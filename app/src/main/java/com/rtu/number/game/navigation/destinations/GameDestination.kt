@@ -7,10 +7,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import com.rtu.number.game.navigation.RootGraph
 import com.rtu.number.game.ui.screens.GameScreen
 import com.rtu.number.game.vm.GameViewModel
 import kotlinx.serialization.Serializable
@@ -22,15 +22,21 @@ fun NavGraphBuilder.game(
     contentPadding: PaddingValues,
     navController: NavController
 ) {
-    composable<GameDestination> {
-        val parentEntry = remember(it) {
-            navController.getBackStackEntry(HomeDestination)
+    composable<GameDestination> { backStackEntry ->
+        val parentEntry = remember(backStackEntry) {
+            navController.getBackStackEntry(RootGraph)
         }
-        val vm: GameViewModel = viewModel(parentEntry)
+        val vm: GameViewModel = hiltViewModel(parentEntry)
+
         GameScreenRoute(
             contentPadding = contentPadding,
             vm = vm,
-            onBack = { navController.popBackStack() })
+            onBack = {
+                navController.navigate(HomeDestination) {
+                    popUpTo(HomeDestination) { inclusive = false }
+                    launchSingleTop = true
+                }
+            })
     }
 }
 

@@ -14,6 +14,7 @@ import com.rtu.number.game.usecase.MakeAiMoveUseCase
 import com.rtu.number.game.usecase.ObserveGameStateUseCase
 import com.rtu.number.game.usecase.StartNewGameUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,6 +56,9 @@ class GameViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    private var aiThinkJob: Job? = null
+
+
     init {
         uiState.map { it.moveToAnimate }
             .distinctUntilChanged()
@@ -89,8 +93,10 @@ class GameViewModel @Inject constructor(
         state: GameState,
         settings: GameSettings
     ) {
+        aiThinkJob?.cancel()
+
         if (state.status == GameStatus.InProgress) {
-            viewModelScope.launch {
+            aiThinkJob = viewModelScope.launch {
                 val aiMove = makeAiMoveUseCase(
                     aiAlgorithm = settings.aiAlgorithm,
                     aiDepth = settings.aiDepth,
@@ -117,6 +123,8 @@ class GameViewModel @Inject constructor(
                 firstSelectedIndex = null,
             )
         }
+        aiThinkJob?.cancel()
+        aiThinkJob = null
     }
 
     fun onNumberClick(index: Int) {
