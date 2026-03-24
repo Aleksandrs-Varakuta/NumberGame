@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.rtu.number.game.domain.model.AiAlgorithm
 import com.rtu.number.game.domain.model.GameMode
 import com.rtu.number.game.domain.model.GameSettings
-import com.rtu.number.game.domain.model.GameState
 import com.rtu.number.game.domain.model.GameStatus
 import com.rtu.number.game.domain.model.Move
 import com.rtu.number.game.domain.model.PlayerId
@@ -63,8 +62,8 @@ class GameViewModel @Inject constructor(
         uiState.map { it.moveToAnimate }
             .distinctUntilChanged()
             .onEach { move ->
-                val state = observeGameStateUseCase().value ?: return@onEach
                 if (move == null) {
+                    val state = observeGameStateUseCase().value ?: return@onEach
                     _uiState.update {
                         it.copy(
                             numbers = state.numbers,
@@ -75,12 +74,8 @@ class GameViewModel @Inject constructor(
                             firstSelectedIndex = null,
                         )
                     }
-                    val settings = _uiState.value.settings
-                    if (_uiState.value.isAiTurn) {
-                        makeAiMove(
-                            state,
-                            settings
-                        )
+                    if (_uiState.value.isAiTurn && state.status is GameStatus.InProgress) {
+                        makeAiMove()
                     }
                 }
 
@@ -89,25 +84,22 @@ class GameViewModel @Inject constructor(
 
     }
 
-    private fun makeAiMove(
-        state: GameState,
-        settings: GameSettings
-    ) {
+    fun makeAiMove() {
         aiThinkJob?.cancel()
 
-        if (state.status == GameStatus.InProgress) {
-            aiThinkJob = viewModelScope.launch {
-                val aiMove = makeAiMoveUseCase(
-                    aiAlgorithm = settings.aiAlgorithm,
-                    aiDepth = settings.aiDepth,
+        aiThinkJob = viewModelScope.launch {
+            val settings = _uiState.value.settings
+            val aiMove = makeAiMoveUseCase(
+                aiAlgorithm = settings.aiAlgorithm,
+                aiDepth = settings.aiDepth,
+            )
+            _uiState.update {
+                it.copy(
+                    moveToAnimate = aiMove,
                 )
-                _uiState.update {
-                    it.copy(
-                        moveToAnimate = aiMove,
-                    )
-                }
-
             }
+
+
         }
     }
 
@@ -125,6 +117,9 @@ class GameViewModel @Inject constructor(
         }
         aiThinkJob?.cancel()
         aiThinkJob = null
+        if (_uiState.value.isAiTurn) {
+            makeAiMove()
+        }
     }
 
     fun onNumberClick(index: Int) {
