@@ -5,9 +5,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.navigation
+import com.rtu.number.game.navigation.destinations.GameDestination
 import com.rtu.number.game.navigation.destinations.HomeDestination
+import com.rtu.number.game.navigation.destinations.SettingsDestination
+import com.rtu.number.game.navigation.destinations.game
 import com.rtu.number.game.navigation.destinations.home
+import com.rtu.number.game.navigation.destinations.settings
+import kotlinx.serialization.Serializable
 
+@Serializable
+data object RootGraph
 @Composable
 fun NGNavHost(
     contentPadding: PaddingValues,
@@ -16,10 +24,29 @@ fun NGNavHost(
     NavHost(
         modifier = Modifier,
         navController = navController,
-        startDestination = HomeDestination
+        startDestination = RootGraph
     ) {
-        home(
-            contentPadding = contentPadding,
-        )
+        navigation<RootGraph>(startDestination = HomeDestination) {
+            home(
+                contentPadding = contentPadding,
+                onStartGame = {
+                    navController.navigate(GameDestination)
+                },
+                onOpenSettings = {
+                    navController.navigate(SettingsDestination)
+                },
+                navController = navController
+            )
+
+            game(
+                contentPadding = contentPadding,
+                navController = navController
+            )
+
+            settings(
+                contentPadding = contentPadding,
+                navController = navController
+            )
+        }
     }
 }

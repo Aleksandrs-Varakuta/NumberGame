@@ -9,22 +9,28 @@ import com.rtu.number.game.domain.model.GameStatus
 import com.rtu.number.game.domain.model.Move
 import com.rtu.number.game.domain.model.PlayerId
 import com.rtu.number.game.usecase.ApplyMoveUseCase
+import com.rtu.number.game.usecase.MakeAiMoveUseCase
 import com.rtu.number.game.usecase.ObserveGameStateUseCase
 import com.rtu.number.game.usecase.StartNewGameUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
+import kotlin.math.abs
 
 @HiltViewModel
 class GameViewModel @Inject constructor(
     private val startNewGameUseCase: StartNewGameUseCase,
     private val applyMoveUseCase: ApplyMoveUseCase,
+    private val makeAiMoveUseCase: MakeAiMoveUseCase,
     private val observeGameStateUseCase: ObserveGameStateUseCase,
 ) : ViewModel() {
 
@@ -35,22 +41,29 @@ class GameViewModel @Inject constructor(
         val currentPlayer: PlayerId = PlayerId.FIRST,
         val status: GameStatus = GameStatus.InProgress,
         val firstSelectedIndex: Int? = null,
-        val errorMessage: String? = null,
         val settings: GameSettings = GameSettings(),
-        val isSettingsOpen: Boolean = false,
-        val draftSettings: GameSettings = GameSettings(),
+        val moveToAnimate: Move? = null,
     ) {
         val player1Name: String get() = settings.player1Name
         val player2Name: String get() = settings.player2Name
+
+        val isAiTurn: Boolean get() = currentPlayer == PlayerId.SECOND && settings.gameMode == GameMode.HUMAN_VS_AI
+
+        val canInteract: Boolean get() = status is GameStatus.InProgress && !isAiTurn && moveToAnimate == null
     }
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    private var aiThinkJob: Job? = null
+
+
     init {
-        observeGameStateUseCase()
-            .onEach { state ->
-                if (state != null) {
+        uiState.map { it.moveToAnimate }
+            .distinctUntilChanged()
+            .onEach { move ->
+                if (move == null) {
+                    val state = observeGameStateUseCase().value ?: return@onEach
                     _uiState.update {
                         it.copy(
                             numbers = state.numbers,
@@ -59,91 +72,120 @@ class GameViewModel @Inject constructor(
                             currentPlayer = state.currentPlayer,
                             status = state.status,
                             firstSelectedIndex = null,
-                            errorMessage = null,
                         )
                     }
+                    if (_uiState.value.isAiTurn && state.status is GameStatus.InProgress) {
+                        makeAiMove()
+                    }
                 }
+
             }
             .launchIn(viewModelScope)
 
-        startGame(_uiState.value.settings)
     }
 
-    // ── Game ──────────────────────────────────────
+    fun makeAiMove() {
+        aiThinkJob?.cancel()
 
-    fun onRestart() = startGame(_uiState.value.settings)
+        aiThinkJob = viewModelScope.launch {
+            val settings = _uiState.value.settings
+            val aiMove = makeAiMoveUseCase(
+                aiAlgorithm = settings.aiAlgorithm,
+                aiDepth = settings.aiDepth,
+            )
+            _uiState.update {
+                it.copy(
+                    moveToAnimate = aiMove,
+                )
+            }
+
+
+        }
+    }
+
+    fun onRestart() {
+        val state = startNewGameUseCase(_uiState.value.settings)
+        _uiState.update {
+            it.copy(
+                numbers = state.numbers,
+                firstPlayerScore = state.firstPlayerScore,
+                secondPlayerScore = state.secondPlayerScore,
+                currentPlayer = state.currentPlayer,
+                status = state.status,
+                firstSelectedIndex = null,
+            )
+        }
+        aiThinkJob?.cancel()
+        aiThinkJob = null
+        if (_uiState.value.isAiTurn) {
+            makeAiMove()
+        }
+    }
 
     fun onNumberClick(index: Int) {
-        val current = _uiState.value
-        if (current.status !is GameStatus.InProgress) return
-        val selected = current.firstSelectedIndex
+        val selected = _uiState.value.firstSelectedIndex
         when {
-            selected == index ->
-                _uiState.update { it.copy(firstSelectedIndex = null, errorMessage = null) }
+            selected == index -> _uiState.update {
+                it.copy(
+                    firstSelectedIndex = null
+                )
+            }
 
-            selected == null ->
-                _uiState.update { it.copy(firstSelectedIndex = index, errorMessage = null) }
+            selected == null -> _uiState.update {
+                it.copy(
+                    firstSelectedIndex = index
+                )
+            }
 
-            kotlin.math.abs(selected - index) == 1 -> {
-                val move = Move(leftIndex = minOf(selected, index))
-                _uiState.update { it.copy(firstSelectedIndex = null, errorMessage = null) }
-                viewModelScope.launch {
-                    val gameState = observeGameStateUseCase().value ?: return@launch
-                    val s = _uiState.value.settings
-                    applyMoveUseCase(
-                        state = gameState,
-                        move = move,
-                        aiEnabled = s.gameMode == GameMode.HUMAN_VS_AI,
-                        aiAlgorithm = s.aiAlgorithm.key,
-                        aiDepth = s.aiDepth,
+            abs(selected - index) == 1 -> {
+                val move = Move(
+                    leftIndex = minOf(
+                        selected,
+                        index
+                    )
+                )
+                _uiState.update {
+                    it.copy(
+                        firstSelectedIndex = null,
+                    )
+                }
+                applyMoveUseCase(move = move)
+                _uiState.update {
+                    it.copy(
+                        moveToAnimate = move
                     )
                 }
             }
 
             else -> _uiState.update {
-                it.copy(firstSelectedIndex = index, errorMessage = "Выберите соседние числа")
+                it.copy(firstSelectedIndex = index)
             }
         }
     }
 
-    // ── Settings ──────────────────────────────────
+    fun onChangeCellCount(newCellCount: Int) =
+        _uiState.update { it.copy(settings = it.settings.copy(cellCount = newCellCount)) }
 
-    fun onOpenSettings() =
-        _uiState.update { it.copy(isSettingsOpen = true, draftSettings = it.settings) }
+    fun onChangeGameMode(newGameMode: GameMode) =
+        _uiState.update { it.copy(settings = it.settings.copy(gameMode = newGameMode)) }
 
-    fun onCloseSettings() =
-        _uiState.update { it.copy(isSettingsOpen = false) }
+    fun onChangePlayer1Name(newPlayer1Name: String) =
+        _uiState.update { it.copy(settings = it.settings.copy(player1Name = newPlayer1Name)) }
 
-    fun onSaveSettings() {
-        val draft = _uiState.value.draftSettings
-        _uiState.update { it.copy(settings = draft, isSettingsOpen = false) }
-        startGame(draft)
+    fun onChangePlayer2Name(newPlayer2Name: String) =
+        _uiState.update { it.copy(settings = it.settings.copy(player2Name = newPlayer2Name)) }
+
+    fun onChangeFirstPlayer(newFirstPlayer: PlayerId) =
+        _uiState.update { it.copy(settings = it.settings.copy(firstPlayer = newFirstPlayer)) }
+
+    fun onChangeAlgorithm(newAiAlgorithm: AiAlgorithm) =
+        _uiState.update { it.copy(settings = it.settings.copy(aiAlgorithm = newAiAlgorithm)) }
+
+    fun onChangeAiDepth(newAiDepth: Int) =
+        _uiState.update { it.copy(settings = it.settings.copy(aiDepth = newAiDepth)) }
+
+    fun onMoveAnimationFinished() = _uiState.update {
+        it.copy(moveToAnimate = null)
     }
 
-    fun onDraftCellCountChange(v: Int) =
-        _uiState.update { it.copy(draftSettings = it.draftSettings.copy(cellCount = v)) }
-
-    fun onDraftGameModeChange(v: GameMode) =
-        _uiState.update { it.copy(draftSettings = it.draftSettings.copy(gameMode = v)) }
-
-    fun onDraftPlayer1NameChange(v: String) =
-        _uiState.update { it.copy(draftSettings = it.draftSettings.copy(player1Name = v)) }
-
-    fun onDraftPlayer2NameChange(v: String) =
-        _uiState.update { it.copy(draftSettings = it.draftSettings.copy(player2Name = v)) }
-
-    fun onDraftFirstPlayerChange(v: PlayerId) =
-        _uiState.update { it.copy(draftSettings = it.draftSettings.copy(firstPlayer = v)) }
-
-    fun onDraftAlgorithmChange(v: AiAlgorithm) =
-        _uiState.update { it.copy(draftSettings = it.draftSettings.copy(aiAlgorithm = v)) }
-
-    fun onDraftAiDepthChange(v: Int) =
-        _uiState.update { it.copy(draftSettings = it.draftSettings.copy(aiDepth = v)) }
-
-    // ── Private ───────────────────────────────────
-
-    private fun startGame(settings: GameSettings) {
-        viewModelScope.launch { startNewGameUseCase(settings) }
-    }
 }

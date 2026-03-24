@@ -2,54 +2,61 @@ package com.rtu.number.game.navigation.destinations
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.rtu.number.game.navigation.RootGraph
-import com.rtu.number.game.ui.screens.HomeScreen
+import com.rtu.number.game.ui.screens.GameScreen
 import com.rtu.number.game.vm.GameViewModel
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object HomeDestination
+data object GameDestination
 
-fun NavGraphBuilder.home(
+fun NavGraphBuilder.game(
     contentPadding: PaddingValues,
-    onStartGame: () -> Unit,
-    onOpenSettings: () -> Unit,
     navController: NavController
 ) {
-    composable<HomeDestination> { backStackEntry ->
+    composable<GameDestination> { backStackEntry ->
         val parentEntry = remember(backStackEntry) {
             navController.getBackStackEntry(RootGraph)
         }
         val vm: GameViewModel = hiltViewModel(parentEntry)
 
-        HomeScreenRoute(
+        GameScreenRoute(
             contentPadding = contentPadding,
-            onStartGame = onStartGame,
-            onOpenSettings = onOpenSettings,
-            vm = vm
-        )
+            vm = vm,
+            onBack = {
+                navController.navigate(HomeDestination) {
+                    popUpTo(HomeDestination) { inclusive = false }
+                    launchSingleTop = true
+                }
+            })
     }
 }
 
 @Composable
-fun HomeScreenRoute(
+fun GameScreenRoute(
     contentPadding: PaddingValues,
     vm: GameViewModel = hiltViewModel(),
-    onOpenSettings: () -> Unit,
-    onStartGame: () -> Unit,
+    onBack: () -> Unit,
 ) {
+    val uiState by vm.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        vm.onRestart()
+    }
 
-    HomeScreen(
+    GameScreen(
         contentPadding = contentPadding,
-        onStartGame = { gameMode ->
-            vm.onChangeGameMode(gameMode)
-            onStartGame()
-        },
-        onOpenSettings = onOpenSettings,
+        uiState = uiState,
+        onRestart = vm::onRestart,
+        onNumberClick = vm::onNumberClick,
+        onMoveAnimationFinished = vm::onMoveAnimationFinished,
+        onBack = onBack
     )
 }

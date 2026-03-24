@@ -4,6 +4,8 @@ import com.rtu.number.game.domain.engine.GameEngine
 import com.rtu.number.game.domain.model.GameState
 import com.rtu.number.game.domain.model.Move
 import com.rtu.number.game.domain.model.PlayerId
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -12,10 +14,16 @@ class AlphaBetaAlgorithm(
     evaluator: Evaluator,
     maxDepth: Int,
     engine: GameEngine
-) : GameAlgorithm(evaluator, maxDepth, engine) {
+) : GameAlgorithm(
+    evaluator,
+    maxDepth,
+    engine
+) {
 
-    override fun findBestMove(state: GameState, player: PlayerId): Move? {
-
+    override suspend fun findBestMove(
+        state: GameState,
+        player: PlayerId
+    ): Move? = withContext(Dispatchers.Default) {
         resetCounters()
 
         val root = GameNode(state)
@@ -29,7 +37,7 @@ class AlphaBetaAlgorithm(
             player
         )
 
-        return root.children.firstOrNull {
+        root.children.firstOrNull {
             abs(it.evaluation - bestValue) < 0.0001
         }?.move
     }
@@ -45,7 +53,10 @@ class AlphaBetaAlgorithm(
 
         if (depth == 0 || node.isTerminal()) {
 
-            val eval = evaluator.evaluate(node.state, player)
+            val eval = evaluator.evaluate(
+                node.state,
+                player
+            )
 
             node.evaluation = eval
 
@@ -54,7 +65,10 @@ class AlphaBetaAlgorithm(
             return eval
         }
 
-        generateChildren(node, node.depth)
+        generateChildren(
+            node,
+            node.depth
+        )
 
         var currentAlpha = alpha
         var currentBeta = beta
@@ -65,11 +79,24 @@ class AlphaBetaAlgorithm(
 
             for (child in node.children) {
 
-                val eval = alphaBeta(child, depth - 1, currentAlpha, currentBeta, false, player)
+                val eval = alphaBeta(
+                    child,
+                    depth - 1,
+                    currentAlpha,
+                    currentBeta,
+                    false,
+                    player
+                )
 
-                maxEval = max(maxEval, eval)
+                maxEval = max(
+                    maxEval,
+                    eval
+                )
 
-                currentAlpha = max(currentAlpha, eval)
+                currentAlpha = max(
+                    currentAlpha,
+                    eval
+                )
 
                 if (currentBeta <= currentAlpha) break
             }
@@ -83,11 +110,24 @@ class AlphaBetaAlgorithm(
 
             for (child in node.children) {
 
-                val eval = alphaBeta(child, depth - 1, currentAlpha, currentBeta, true, player)
+                val eval = alphaBeta(
+                    child,
+                    depth - 1,
+                    currentAlpha,
+                    currentBeta,
+                    true,
+                    player
+                )
 
-                minEval = min(minEval, eval)
+                minEval = min(
+                    minEval,
+                    eval
+                )
 
-                currentBeta = min(currentBeta, eval)
+                currentBeta = min(
+                    currentBeta,
+                    eval
+                )
 
                 if (currentBeta <= currentAlpha) break
             }

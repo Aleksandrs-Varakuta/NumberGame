@@ -17,7 +17,7 @@ abstract class GameAlgorithm(
         nodesEvaluated = 0
     }
 
-    abstract fun findBestMove(
+    abstract suspend fun findBestMove(
         state: GameState,
         player: PlayerId
     ): Move?
