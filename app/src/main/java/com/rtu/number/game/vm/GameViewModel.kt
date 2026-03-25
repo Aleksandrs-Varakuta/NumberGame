@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.rtu.number.game.domain.model.AiAlgorithm
 import com.rtu.number.game.domain.model.GameMode
 import com.rtu.number.game.domain.model.GameSettings
+import com.rtu.number.game.domain.model.GameStatistics
+import com.rtu.number.game.domain.model.GameStatisticsRepository
 import com.rtu.number.game.domain.model.GameStatus
 import com.rtu.number.game.domain.model.Move
 import com.rtu.number.game.domain.model.PlayerId
@@ -32,6 +34,7 @@ class GameViewModel @Inject constructor(
     private val applyMoveUseCase: ApplyMoveUseCase,
     private val makeAiMoveUseCase: MakeAiMoveUseCase,
     private val observeGameStateUseCase: ObserveGameStateUseCase,
+    private val gameStatisticsRepository: GameStatisticsRepository
 ) : ViewModel() {
 
     data class UiState(
@@ -43,11 +46,12 @@ class GameViewModel @Inject constructor(
         val firstSelectedIndex: Int? = null,
         val settings: GameSettings = GameSettings(),
         val moveToAnimate: Move? = null,
+        val gameStatistics: GameStatistics = GameStatistics()
     ) {
         val player1Name: String get() = settings.player1Name
         val player2Name: String get() = settings.player2Name
 
-        val isAiTurn: Boolean get() = currentPlayer == PlayerId.SECOND && settings.gameMode == GameMode.HUMAN_VS_AI
+        val isAiTurn: Boolean get() = currentPlayer == PlayerId.SECOND && settings.gameMode == GameMode.HUMAN_VS_AI && status is GameStatus.InProgress
 
         val canInteract: Boolean get() = status is GameStatus.InProgress && !isAiTurn && moveToAnimate == null
     }
@@ -72,9 +76,10 @@ class GameViewModel @Inject constructor(
                             currentPlayer = state.currentPlayer,
                             status = state.status,
                             firstSelectedIndex = null,
+                            gameStatistics = gameStatisticsRepository.gameStatistics.value
                         )
                     }
-                    if (_uiState.value.isAiTurn && state.status is GameStatus.InProgress) {
+                    if (_uiState.value.isAiTurn) {
                         makeAiMove()
                     }
                 }
@@ -104,6 +109,7 @@ class GameViewModel @Inject constructor(
     }
 
     fun onRestart() {
+        onClearStatistics()
         val state = startNewGameUseCase(_uiState.value.settings)
         _uiState.update {
             it.copy(
@@ -122,6 +128,9 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    private fun onClearStatistics() {
+        gameStatisticsRepository.clearStatistics()
+    }
     fun onNumberClick(index: Int) {
         val selected = _uiState.value.firstSelectedIndex
         when {

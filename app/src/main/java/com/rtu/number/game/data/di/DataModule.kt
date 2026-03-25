@@ -1,8 +1,10 @@
 package com.rtu.number.game.data.di
 
+import com.rtu.number.game.data.repository.InMemoryGameSessionRepository
 import com.rtu.number.game.domain.ai.Evaluator
 import com.rtu.number.game.domain.ai.SimpleEvaluator
-import com.rtu.number.game.data.repository.InMemoryGameSessionRepository
+import com.rtu.number.game.domain.model.GameStatisticsRepository
+import com.rtu.number.game.domain.model.GameStatisticsRepositoryImpl
 import com.rtu.number.game.domain.repository.GameSessionRepository
 import com.rtu.number.game.domain.rules.DefaultGameStatusResolver
 import com.rtu.number.game.domain.rules.DefaultMoveApplier
@@ -34,8 +36,7 @@ object DataModule {
 
     @Provides
     @Singleton
-    fun provideInitialGameStateFactory(): InitialGameStateFactory =
-        RandomInitialGameStateFactory()
+    fun provideInitialGameStateFactory(): InitialGameStateFactory = RandomInitialGameStateFactory()
 
     @Provides
     @Singleton
@@ -68,4 +69,8 @@ object DataModule {
     @Provides
     @Singleton
     fun provideEvaluator(): Evaluator = SimpleEvaluator()
+
+    @Provides
+    @Singleton
+    fun provideGameStatisticsRepository(): GameStatisticsRepository = GameStatisticsRepositoryImpl()
 }

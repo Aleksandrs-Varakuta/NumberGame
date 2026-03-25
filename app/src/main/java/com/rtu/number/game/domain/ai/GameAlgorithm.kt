@@ -10,7 +10,6 @@ abstract class GameAlgorithm(
     protected val maxDepth: Int,
     protected val engine: GameEngine
 ) {
-
     protected var nodesEvaluated = 0
 
     protected fun resetCounters() {
@@ -24,13 +23,19 @@ abstract class GameAlgorithm(
 
     abstract fun getName(): String
 
-    protected fun generateChildren(node: GameNode, depth: Int) {
+    protected fun generateChildren(
+        node: GameNode,
+        depth: Int
+    ) {
 
         val moves = engine.getAvailableMoves(node.state)
 
         for (move in moves) {
 
-            val newState = engine.applyMove(node.state, move)
+            val newState = engine.applyMove(
+                node.state,
+                move
+            )
 
             val child = GameNode(
                 state = newState,
@@ -41,4 +46,6 @@ abstract class GameAlgorithm(
             node.children.add(child)
         }
     }
+
+    fun getEvaluatedNodesCount() = nodesEvaluated
 }

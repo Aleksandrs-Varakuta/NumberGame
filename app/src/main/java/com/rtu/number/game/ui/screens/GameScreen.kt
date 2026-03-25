@@ -23,8 +23,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,6 +38,7 @@ import com.rtu.number.game.domain.model.GameMode
 import com.rtu.number.game.domain.model.GameStatus
 import com.rtu.number.game.domain.model.PlayerId
 import com.rtu.number.game.ui.component.GameRulesDialog
+import com.rtu.number.game.ui.component.GameStatisticsDialog
 import com.rtu.number.game.ui.component.NumberRow
 import com.rtu.number.game.vm.GameViewModel
 
@@ -51,6 +52,8 @@ fun GameScreen(
     onBack: () -> Unit,
 ) {
     var showGameRulesDialog by remember { mutableStateOf(false) }
+    var showGameStatisticsDialog by remember { mutableStateOf(false) }
+
 
     Column(
         modifier = Modifier
@@ -65,6 +68,8 @@ fun GameScreen(
             status = uiState.status,
             player1Name = uiState.player1Name,
             player2Name = uiState.player2Name,
+            onOpenGameStatistics = { showGameStatisticsDialog = true },
+            gameMode = uiState.settings.gameMode
         )
 
         Spacer(Modifier.height(24.dp))
@@ -82,7 +87,7 @@ fun GameScreen(
 
         BottomBar(
             onRestart = onRestart,
-            onOpenGameRules = { showGameRulesDialog = true},
+            onOpenGameRules = { showGameRulesDialog = true },
             onBack = onBack,
             firstPlayerName = uiState.player1Name,
             secondPlayerName = uiState.player2Name,
@@ -96,6 +101,12 @@ fun GameScreen(
         if (showGameRulesDialog) {
             GameRulesDialog(onDismiss = { showGameRulesDialog = false })
         }
+        if (showGameStatisticsDialog) {
+            GameStatisticsDialog(
+                onDismiss = { showGameStatisticsDialog = false },
+                gameStatistics = uiState.gameStatistics
+            )
+        }
     }
 }
 
@@ -104,6 +115,8 @@ private fun GameStateInfo(
     status: GameStatus,
     player1Name: String,
     player2Name: String,
+    onOpenGameStatistics: () -> Unit,
+    gameMode: GameMode
 ) {
     val statusText = when (status) {
         GameStatus.InProgress -> "Game in progress"
@@ -113,11 +126,29 @@ private fun GameStateInfo(
             null -> "Draw"
         }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = statusText,
-            style = TextStyle(color = Color.White)
-        )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = statusText,
+                style = TextStyle(color = Color.White)
+            )
+        }
+
+        if (status is GameStatus.Finished && gameMode == GameMode.HUMAN_VS_AI) {
+            Button(
+                onClick = onOpenGameStatistics,
+                contentPadding = PaddingValues(
+                    horizontal = 4.dp,
+                    vertical = 2.dp
+                ),
+                modifier = Modifier.height(30.dp)
+            ) {
+                Text("Show Statistics")
+            }
+        }
     }
 }
 
